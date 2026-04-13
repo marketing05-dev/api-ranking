@@ -5,37 +5,43 @@ export default async function handler(req, res) {
   try {
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vScBZdmEkhWYy_nvLQLQHQdESDZk1qOdaWMhzBKTtx_bliBVU6jCLYN2odvsYZ93RP0V89eRmkKvVp2/pub?gid=884279750&single=true&output=csv";
     const response = await fetch(url);
-    const csv = await response.text();
+    const buffer = await response.arrayBuffer();
+    const decoder = new TextDecoder('utf-8'); // Força a leitura correta de acentos
+    const csv = decoder.decode(buffer);
 
-    // Divide as linhas e remove aspas chatas que o Google Sheets coloca
     const linhas = csv.split(/\r?\n/).map(linha => {
-        // Esta regra separa por vírgula mas ignora vírgulas dentro de valores como "77,00"
         return linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(campo => campo.replace(/"/g, '').trim());
     });
 
-    // O cabeçalho real está na linha 0
     const headers = linhas[0];
-    const idxCliente = headers.indexOf("Cliente");
-    const idxFilial = headers.indexOf("Filial");
-    const idxVenda = headers.indexOf("SUM de Venda");
-    const idxRankCli = headers.indexOf("POSIÇÃO DO CLIENTE DENTRO DA FILIAL");
-    const idxRankFil = headers.indexOf("POSIÇÃO FILIAL RNK PABU");
+    
+    // Busca os índices das colunas de forma inteligente (ignora acentos e caixa alta)
+    const acharIndice = (nome) => headers.findIndex(h => 
+        h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(nome.toLowerCase())
+    );
 
-    // Procura o cliente (ignora maiúsculas e espaços extras)
-    const busca = cliente.trim().toLowerCase();
-    const dados = linhas.slice(1); // Pula o cabeçalho
-    const resultado = dados.find(colunas => colunas[idxCliente]?.toLowerCase() === busca);
+    const idxCliente = acharIndice("cliente");
+    const idxVenda = acharIndice("venda");
+    const idxRankCli = acharIndice("dentro da filial"); // Busca por parte do nome
+    const idxRankFil = acharIndice("rnk pabu");
+
+    const busca = cliente.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    
+    // Procura o cliente limpando acentos de ambos os lados
+    const resultado = linhas.slice(1).find(colunas => {
+        const nomePlanilha = (colunas[idxCliente] || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return nomePlanilha === busca;
+    });
 
     if (!resultado) {
       return res.status(200).json({ 
         mensagem: "Cliente não encontrado", 
-        cliente_tentado: cliente 
+        dica: "Verifique se o nome no Sheets é exatamente: " + cliente.toUpperCase()
       });
     }
 
     return res.status(200).json({
       cliente: resultado[idxCliente],
-      filial: resultado[idxFilial] || "Verificar linha acima na planilha",
       vendas: "R$ " + resultado[idxVenda],
       ranking_no_pabu: resultado[idxRankCli],
       ranking_da_filial: resultado[idxRankFil]
