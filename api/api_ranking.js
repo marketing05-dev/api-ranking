@@ -1,6 +1,6 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
     const { cliente } = req.query;
     if (!cliente) return res.status(400).json({ erro: "Informe o cliente" });
@@ -13,7 +13,6 @@ module.exports = async (req, res) => {
 
     const busca = cliente.trim().toUpperCase();
     
-    // Procura a linha que contém o nome (ignora aspas e espaços)
     const linhaEncontrada = linhas.find(l => {
       const colunas = l.split(',');
       const nomeNaPlanilha = colunas[3] ? colunas[3].replace(/"/g, '').trim().toUpperCase() : "";
@@ -38,4 +37,4 @@ module.exports = async (req, res) => {
   } catch (e) {
     return res.status(500).json({ erro: "Erro no servidor", detalhe: e.message });
   }
-};
+}
