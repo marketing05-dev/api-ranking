@@ -1,8 +1,8 @@
 {
   "name": "api-ranking",
   "version": "1.0.0",
+  "type": "module",
   "dependencies": {
-    "google-spreadsheet": "^4.1.1",
-    "google-auth-library": "^9.0.0"
+    "node-fetch": "^3.0.0"
   }
 }
