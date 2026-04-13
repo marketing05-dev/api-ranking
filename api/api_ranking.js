@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     // Link direto para exportação em CSV (mais estável para servidores)
     const spreadsheetId = "1ScBZdmEkhWYy_nvLQLQHQdESDZk1qOdaWMhzBKTtx_bliBVU6jCLYN2odvsYZ93RP0V89eRmkKvVp2";
     const gid = "884279750";
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+    const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vScBZdmEkhWYy_nvLQLQHQdESDZk1qOdaWMhzBKTtx_bliBVU6jCLYN2odvsYZ93RP0V89eRmkKvVp2/pub?gid=884279750&single=true&output=csv`;
     
     const response = await fetch(url);
     if (!response.ok) throw new Error("Não consegui acessar a planilha");
