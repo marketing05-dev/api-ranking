@@ -12,40 +12,39 @@ export default async function handler(req, res) {
     const csv = await response.text();
 
     const linhas = csv.split("\n").map(l => l.trim());
-    const headers = linhas[0].split(",");
+    
+    // Mudamos para linhas[1] porque seus títulos estão na segunda linha da planilha
+    const headers = linhas[1].split(","); 
 
-    const dados = linhas.slice(1).map(linha => {
+    const dados = linhas.slice(2).map(linha => {
       const valores = linha.split(",");
       let obj = {};
-
       headers.forEach((h, i) => {
         obj[h.trim()] = valores[i]?.trim();
       });
-
       return obj;
     });
 
-    // 🔍 filtrar cliente (atenção no nome da coluna!)
+    // Buscando por "Cliente" (com C maiúsculo como no seu print)
     const resultado = dados.find(item =>
-      item["cliente"]?.toLowerCase() === cliente.toLowerCase()
+      item["Cliente"]?.toLowerCase() === cliente.toLowerCase()
     );
 
     if (!resultado) {
-      return res.status(204).end();
+      return res.status(200).json({ mensagem: "Cliente não encontrado na lista" });
     }
 
-    // 🎯 retornar só o necessário
     const resposta = {
-      cliente: resultado["cliente"],
+      cliente: resultado["Cliente"],
       filial: resultado["Filial"],
-      ranking_cliente: resultado["posição do cliente dentro da Filial"],
-      ranking_filial: resultado["posição Filial Rnk"],
-      ultima_atualizacao: resultado["ultima_atualizacao"] || "Não informado"
+      ranking_cliente: resultado["posição do cliente dentro da Filial"] || "N/A",
+      ranking_filial: resultado["POSIÇÃO FILIAL RNK PABU"] || "N/A", // Nome exato da coluna F
+      vendas: resultado["SUM de Venda"]
     };
 
     return res.status(200).json(resposta);
 
   } catch (error) {
-    return res.status(500).json({ erro: "Erro ao processar dados" });
+    return res.status(500).json({ erro: "Erro ao processar dados", detalhe: error.message });
   }
 }
