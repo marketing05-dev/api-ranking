@@ -1,54 +1,44 @@
 export default async function handler(req, res) {
   const { cliente } = req.query;
-
-  if (!cliente) {
-    return res.status(400).json({ erro: "Cliente não informado" });
-  }
+  if (!cliente) return res.status(400).json({ erro: "Cliente não informado" });
 
   try {
-    // URL da sua planilha
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vScBZdmEkhWYy_nvLQLQHQdESDZk1qOdaWMhzBKTtx_bliBVU6jCLYN2odvsYZ93RP0V89eRmkKvVp2/pub?gid=884279750&single=true&output=csv";
-
     const response = await fetch(url);
     const csv = await response.text();
 
-    // Divide as linhas
-    const linhas = csv.split(/\r?\n/);
-    
-    // Pega os títulos na Linha 2 (índice 1) e limpa aspas extras
-    const headers = linhas[1].split(",").map(h => h.replace(/"/g, '').trim()); 
-
-    const dados = linhas.slice(2).map(linha => {
-      // Regex para separar por vírgula mas ignorar vírgulas dentro de aspas (se houver)
-      const valores = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-      let obj = {};
-      headers.forEach((h, i) => {
-        let valor = valores[i] ? valores[i].replace(/"/g, '').trim() : "";
-        obj[h] = valor;
-      });
-      return obj;
+    // Divide as linhas e remove aspas chatas que o Google Sheets coloca
+    const linhas = csv.split(/\r?\n/).map(linha => {
+        // Esta regra separa por vírgula mas ignora vírgulas dentro de valores como "77,00"
+        return linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(campo => campo.replace(/"/g, '').trim());
     });
 
-    // Busca ignorando espaços extras no início/fim e diferenças de maiúsculas
+    // O cabeçalho real está na linha 0
+    const headers = linhas[0];
+    const idxCliente = headers.indexOf("Cliente");
+    const idxFilial = headers.indexOf("Filial");
+    const idxVenda = headers.indexOf("SUM de Venda");
+    const idxRankCli = headers.indexOf("POSIÇÃO DO CLIENTE DENTRO DA FILIAL");
+    const idxRankFil = headers.indexOf("POSIÇÃO FILIAL RNK PABU");
+
+    // Procura o cliente (ignora maiúsculas e espaços extras)
     const busca = cliente.trim().toLowerCase();
-    const resultado = dados.find(item => 
-      item["Cliente"] && item["Cliente"].trim().toLowerCase() === busca
-    );
+    const dados = linhas.slice(1); // Pula o cabeçalho
+    const resultado = dados.find(colunas => colunas[idxCliente]?.toLowerCase() === busca);
 
     if (!resultado) {
       return res.status(200).json({ 
-        mensagem: "Cliente não encontrado na lista",
-        sugestao: "Verifique se o nome está idêntico ao da planilha",
+        mensagem: "Cliente não encontrado", 
         cliente_tentado: cliente 
       });
     }
 
     return res.status(200).json({
-      cliente: resultado["Cliente"],
-      filial: resultado["Filial"],
-      vendas: resultado["SUM de Venda"],
-      ranking_cliente: resultado["POSIÇÃO DO CLIENTE DENTRO DA FILIAL"] || "N/A",
-      ranking_filial: resultado["POSIÇÃO FILIAL RNK PABU"] || "N/A"
+      cliente: resultado[idxCliente],
+      filial: resultado[idxFilial] || "Verificar linha acima na planilha",
+      vendas: "R$ " + resultado[idxVenda],
+      ranking_no_pabu: resultado[idxRankCli],
+      ranking_da_filial: resultado[idxRankFil]
     });
 
   } catch (error) {
