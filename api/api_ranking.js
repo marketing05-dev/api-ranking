@@ -1,4 +1,6 @@
-export default async function handler(req, res) {
+const fetch = require('node-fetch');
+
+module.exports = async (req, res) => {
   try {
     const { cliente } = req.query;
     if (!cliente) return res.status(400).json({ erro: "Informe o cliente" });
@@ -7,32 +9,33 @@ export default async function handler(req, res) {
     
     const response = await fetch(url);
     const texto = await response.text();
-    
-    // Divide por linhas
     const linhas = texto.split(/\r?\n/);
-    
-    // Busca a linha que contém o nome do cliente
+
     const busca = cliente.trim().toUpperCase();
-    const linhaEncontrada = linhas.find(l => l.toUpperCase().includes(busca));
+    
+    // Procura a linha que contém o nome (ignora aspas e espaços)
+    const linhaEncontrada = linhas.find(l => {
+      const colunas = l.split(',');
+      const nomeNaPlanilha = colunas[3] ? colunas[3].replace(/"/g, '').trim().toUpperCase() : "";
+      return nomeNaPlanilha.includes(busca) || busca.includes(nomeNaPlanilha);
+    });
 
     if (!linhaEncontrada) {
-      return res.status(200).json({ msg: "Cliente não encontrado", busca });
+      return res.status(200).json({ msg: "Cliente não encontrado", buscado: busca });
     }
 
-    // O truque para não quebrar com a vírgula do "77,00":
-    // Vamos trocar as vírgulas que estão entre aspas por um ponto temporário
-    const linhaTratada = linhaEncontrada.replace(/"([^"]*)"/g, (m, c) => c.replace(/,/g, '.'));
-    const colunas = linhaTratada.split(',');
+    const colunas = linhaEncontrada.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+    const limpar = (txt) => txt ? txt.replace(/"/g, '').trim() : "---";
 
     return res.status(200).json({
-      cliente: colunas[3] ? colunas[3].trim() : "---",
-      filial: colunas[1] ? colunas[1].trim() : "---",
-      vendas: "R$ " + (colunas[4] ? colunas[4].trim() : "0.00"),
-      ranking_cliente: colunas[6] ? colunas[6].trim() : "---",
-      ranking_filial: colunas[5] ? colunas[5].trim() : "---"
+      cliente: limpar(colunas[3]),
+      filial: limpar(colunas[1]),
+      vendas: "R$ " + limpar(colunas[4]),
+      ranking_cliente: limpar(colunas[6]),
+      ranking_filial: limpar(colunas[5])
     });
 
   } catch (e) {
-    return res.status(500).json({ erro: "Erro de processamento", detalhe: e.message });
+    return res.status(500).json({ erro: "Erro no servidor", detalhe: e.message });
   }
-}
+};
