@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export default async function handler(req, res) {
   try {
     const { cliente } = req.query;
@@ -7,6 +5,7 @@ export default async function handler(req, res) {
 
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vScBZdmEkhWYy_nvLQLQHQdESDZk1qOdaWMhzBKTtx_bliBVU6jCLYN2odvsYZ93RP0V89eRmkKvVp2/pub?gid=884279750&single=true&output=csv";
     
+    // Usando o fetch nativo do Node.js (não precisa de import)
     const response = await fetch(url);
     const texto = await response.text();
     const linhas = texto.split(/\r?\n/);
