@@ -8,30 +8,31 @@ export default async function handler(req, res) {
     const response = await fetch(url);
     const texto = await response.text();
     
-    // Divide as linhas corretamente
+    // Divide por linhas
     const linhas = texto.split(/\r?\n/);
     
-    // Procura a linha que contém o nome do cliente (sem ser sensível a maiúsculas/minúsculas)
+    // Busca a linha que contém o nome do cliente
     const busca = cliente.trim().toUpperCase();
-    const linhaAlvo = linhas.find(l => l.toUpperCase().includes(busca));
+    const linhaEncontrada = linhas.find(l => l.toUpperCase().includes(busca));
 
-    if (!linhaAlvo) {
+    if (!linhaEncontrada) {
       return res.status(200).json({ msg: "Cliente não encontrado", busca });
     }
 
-    // Separa as colunas respeitando as aspas do CSV (para não quebrar no 77,00)
-    const colunas = linhaAlvo.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-    const limpar = (txt) => txt ? txt.replace(/"/g, '').trim() : "---";
+    // O truque para não quebrar com a vírgula do "77,00":
+    // Vamos trocar as vírgulas que estão entre aspas por um ponto temporário
+    const linhaTratada = linhaEncontrada.replace(/"([^"]*)"/g, (m, c) => c.replace(/,/g, '.'));
+    const colunas = linhaTratada.split(',');
 
     return res.status(200).json({
-      cliente: limpar(colunas[3]), // Coluna D
-      filial: limpar(colunas[1]),  // Coluna B
-      vendas: "R$ " + limpar(colunas[4]), // Coluna E
-      ranking_cliente: limpar(colunas[6]), // Coluna G
-      ranking_filial: limpar(colunas[5])  // Coluna F
+      cliente: colunas[3] ? colunas[3].trim() : "---",
+      filial: colunas[1] ? colunas[1].trim() : "---",
+      vendas: "R$ " + (colunas[4] ? colunas[4].trim() : "0.00"),
+      ranking_cliente: colunas[6] ? colunas[6].trim() : "---",
+      ranking_filial: colunas[5] ? colunas[5].trim() : "---"
     });
 
   } catch (e) {
-    return res.status(500).json({ erro: "Erro interno", detalhe: e.message });
+    return res.status(500).json({ erro: "Erro de processamento", detalhe: e.message });
   }
 }
